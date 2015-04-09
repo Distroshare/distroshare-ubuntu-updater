@@ -3,6 +3,7 @@
 from parsers import DUConfigParser, DUManifestParser, DUReleaseParser
 from updates import GitRepos
 import subprocess, sys
+import ConfigParser
 
 def run_command(command):
     try:
@@ -24,6 +25,9 @@ def main():
     except IOError:
         print "Error opening configuration file: /etc/default/distroshare-updater"
         sys.exit(1)
+    except ConfigParser.NoOptionError:
+        print "Incomplete config file: /etc/default/distroshare-updater"
+        sys.exit(1)
 
     repos = GitRepos(config)
     repos.update_repos()
@@ -31,7 +35,8 @@ def main():
     manifest_machine = DUManifestParser(config.get_git_machine_dir())
     release = DUReleaseParser()
 
-    if manifest_base.get_version() == release.get_base_version() and manifest_machine.get_version() == release.get_machine_version():
+    if manifest_base.get_version() == release.get_base_version() \
+       and manifest_machine.get_version() == release.get_machine_version():
         print "Already at the latest version"
         sys.exit(0)
 
@@ -45,14 +50,13 @@ def main():
     print "Running apt-get update"
     run_command(["apt-get", "-qq", "update"])
 
+    print "Installing packages and putting packages on hold"
     for manifest in [manifest_base, manifest_machine]:
-        print "Installing specific packages"
         #install packages
         for name in manifest.get_packages_to_install():
             run_command(["apt-get", "-qq", "install", name])
 
         #put packages on hold
-        print "Putting specific packages on hold"
         for name in manifest.get_packages_to_hold():
             run_command(["apt-mark", "hold", name])
 
