@@ -1,9 +1,12 @@
 #!/usr/bin/env python2.7
 
-from parsers import DUConfigParser, DUManifestParser, DUReleaseParser
-from updates import GitRepos
+from distroshare_updater.parsers import DUConfigParser
+from distroshare_updater.parsers import DUManifestParser
+from distroshare_updater.parsers import DUReleaseParser
+from distroshare_updater.updates import GitRepos
 import subprocess, sys
 import ConfigParser
+import git
 
 def run_command(command):
     try:
@@ -29,7 +32,12 @@ def main():
         print "Incomplete config file: /etc/default/distroshare-updater"
         sys.exit(1)
 
-    repos = GitRepos(config)
+    try:
+        repos = GitRepos(config)
+    except git.exc.NoSuchPathError as e:
+        print "Error initializing git repos: " + str(e)
+        sys.exit(1)
+
     repos.update_repos()
     manifest_base = DUManifestParser(config.get_git_common_dir())
     manifest_machine = DUManifestParser(config.get_git_machine_dir())
@@ -47,18 +55,37 @@ def main():
     run_command(["rsync","-a", config.get_git_machine_dir() + "/files/", "/"])
 
     #update package lists
+
+    print "Adding any repos listed"
+    for manifest in [manifest_base, manifest_machine]:
+        if manifest is None:
+            continue
+
+        #add repos
+        repos = manifest.get_repos_to_add()
+        if repos:
+            for addr in repos:
+                run_command(["add-apt-repository", "-y", addr])
+
     print "Running apt-get update"
     run_command(["apt-get", "-qq", "update"])
 
     print "Installing packages and putting packages on hold"
     for manifest in [manifest_base, manifest_machine]:
+        if manifest is None:
+            continue
+
         #install packages
-        for name in manifest.get_packages_to_install():
-            run_command(["apt-get", "-qq", "install", name])
+        packages = manifest.get_packages_to_install()
+        if packages:
+            for name in packages:
+                run_command(["apt-get", "-qq", "install", name])
 
         #put packages on hold
-        for name in manifest.get_packages_to_hold():
-            run_command(["apt-mark", "hold", name])
+        packages = manifest.get_packages_to_hold()
+        if packages:
+            for name in packages:
+                run_command(["apt-mark", "hold", name])
 
     #running grub-update
     print "Updating Grub"

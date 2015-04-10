@@ -146,6 +146,22 @@ class DUManifestParser:
 
         return install
 
+    def get_repos_to_add(self):
+        """Returns a list of repos to add"""
+
+        if self._root is None:
+            return None
+
+        repos_to_add = self._root.find('repos_to_add')
+        if repos_to_add is None:
+            return None
+
+        repos = []
+        for repo in repos_to_add:
+            repos.append(package.get('address'))
+
+        return repos
+
     def get_version(self):
         if self._root is None:
             return None
