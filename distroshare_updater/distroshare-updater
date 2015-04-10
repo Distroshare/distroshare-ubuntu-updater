@@ -48,14 +48,6 @@ def main():
         print "Already at the latest version"
         sys.exit(0)
 
-    #run rsync to copy the files to the proper locations
-    print "Rsyncing common config files"
-    run_command(["rsync","-a", config.get_git_common_dir() + "/files/", "/"])
-    print "Rsyncing machine specific config files"
-    run_command(["rsync","-a", config.get_git_machine_dir() + "/files/", "/"])
-
-    #update package lists
-
     print "Adding any repos listed"
     for manifest in [manifest_base, manifest_machine]:
         if manifest is None:
@@ -67,6 +59,7 @@ def main():
             for addr in repos:
                 run_command(["add-apt-repository", "-y", addr])
 
+    #update package lists
     print "Running apt-get update"
     run_command(["apt-get", "-qq", "update"])
 
@@ -86,6 +79,12 @@ def main():
         if packages:
             for name in packages:
                 run_command(["apt-mark", "hold", name])
+
+    #run rsync to copy the files to the proper locations
+    print "Rsyncing common config files"
+    run_command(["rsync","-a", config.get_git_common_dir() + "/files/", "/"])
+    print "Rsyncing machine specific config files"
+    run_command(["rsync","-a", config.get_git_machine_dir() + "/files/", "/"])
 
     #running grub-update
     print "Updating Grub"
