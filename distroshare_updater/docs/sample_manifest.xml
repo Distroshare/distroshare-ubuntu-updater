@@ -15,6 +15,10 @@
   <repos_to_add>
     <repo address="ppa:hugegreenbug/cmt2">
     </repo>
+    <repo address="http://www.distroshare.com/apt">
+    </repo>
+    <repo address="http://www.distroshare.com/apt_haswell">
+    </repo>
   </repos_to_add>
 </data>
 
