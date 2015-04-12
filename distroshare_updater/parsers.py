@@ -158,7 +158,7 @@ class DUManifestParser:
 
         repos = []
         for repo in repos_to_add:
-            repos.append(package.get('address'))
+            repos.append(repo.get('address'))
 
         return repos
 
