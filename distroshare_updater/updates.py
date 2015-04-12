@@ -35,6 +35,7 @@ class GitRepos:
 
             try:
                 repo.git.reset('--hard')
+                repo.remotes.origin.fetch()
                 repo.remotes.origin.pull()
             except GitCommandError as e:
                 print "Error retrieving updates: " + str(e)
