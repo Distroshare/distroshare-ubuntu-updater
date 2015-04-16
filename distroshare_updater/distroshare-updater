@@ -7,6 +7,11 @@ from distroshare_updater.updates import GitRepos
 import subprocess, sys
 import ConfigParser
 import git
+import platform
+
+def get_distro_name():
+    distro = platform.linux_distribution()
+    return distro[0] + "_" + distro[1]
 
 def run_command(command):
     try:
@@ -59,9 +64,16 @@ def main():
             for addr in repos:
                 run_command(["add-apt-repository", "-y", addr])
 
+    print "Rsyncing distro specific config files"
+    distro_config_files = config.get_git_common_dir() + "/" + get_distro_name() + "/"
+    if os.path.isdir(distro_config_files):
+    run_command(["rsync","-a", distro_config_files, "/"])
+		
     #update package lists
     print "Running apt-get update"
     run_command(["apt-get", "-qq", "update"])
+    print "Running apt-get dist-upgrade"
+    run_command(["apt-get", "-qq", "dist-upgrade"])
 
     print "Installing packages and putting packages on hold"
     for manifest in [manifest_base, manifest_machine]:
@@ -82,9 +94,9 @@ def main():
 
     #run rsync to copy the files to the proper locations
     print "Rsyncing common config files"
-    run_command(["rsync","-a", config.get_git_common_dir() + "/files/", "/"])
+    run_command(["rsync","-a", config.get_git_common_dir() + "/all/", "/"])
     print "Rsyncing machine specific config files"
-    run_command(["rsync","-a", config.get_git_machine_dir() + "/files/", "/"])
+    run_command(["rsync","-a", config.get_git_machine_dir() + "/all/", "/"])
 
     #running grub-update
     print "Updating Grub"
