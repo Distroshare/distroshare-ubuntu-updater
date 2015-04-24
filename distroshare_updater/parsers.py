@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import ConfigParser, os
 import platform
+import subprocess
 
 class FakeSecHead(object):
     """Taken from: 
@@ -25,17 +26,28 @@ class DUConfigParser:
 
     _config_file = "/etc/default/distroshare-updater"
     _config = None
+    _product_name = None
     def __init__(self):
         """Initialize the ConfigParser"""
 
         self._config = ConfigParser.ConfigParser()
         self._config.readfp(FakeSecHead(open(self._config_file)))
         self.validate()
+        try:
+            self._product_name = subprocess.check_output(
+                '/usr/sbin/dmidecode | grep Product | cut -f 2 -d ":"',
+                stderr=subprocess.STDOUT, shell=True)
+            print "Product: " + self._product_name
+        except subprocess.CalledProcessError as e:
+            self._product_name = None
+
+        if self._product_name is None or len(self._product_name) == 0:
+            sys.stderr.write("Error getting the product name\n")
+            sys.exit(1)
 
     def validate(self):
         self.get_git_dir()
         self.get_git_base_repo()
-        self.get_git_machine_repo()
 
     def get_git_dir(self):
         """Returns the local directory to store the git repo"""
@@ -43,10 +55,10 @@ class DUConfigParser:
         return self._config.get('asection', 'git_dir', 0)
 
     def get_git_common_dir(self):
-        return self.get_git_dir() + "/common"
+        return self.get_git_dir() + "/updates"
 
     def get_git_machine_dir(self):
-        return self.get_git_dir() + "/machine"
+        return self.get_git_common_dir() + "/" + self._product_name
 
     def get_git_base_repo(self):
         """Returns the base location for the git repo. This is
@@ -54,13 +66,6 @@ class DUConfigParser:
         https://github.com/Distroshare/"""
 
         return self._config.get('asection', 'base_repo', 0)
-
-    def get_git_machine_repo(self):
-        """Returns the base location for the git repo. This is
-        used for initializing/updating the repo. Example: 
-        https://github.com/Distroshare/"""
-
-        return self._config.get('asection', 'machine_repo', 0)
 
 class DUReleaseParser:
     """A config file parser that uses ConfigParser"""
@@ -76,27 +81,14 @@ class DUReleaseParser:
         except IOError as e:
             self._config = None
 
-    def get_base_version(self):
-        """Returns the version of this release"""
+    def get_version(self):
+        """Returns the installed version"""
 
         if self._config is None:
             return "0"
 
         try:
             version = self._config.get('asection', 'base_version', 0)
-        except ConfigParser.NoOptionError:
-            version = "0"
-
-        return version
-
-    def get_machine_version(self):
-        """Returns the version of this release"""
-
-        if self._config is None:
-            return "0"
-
-        try:
-            version = self._config.get('asection', 'machine_version', 0)
         except ConfigParser.NoOptionError:
             version = "0"
 

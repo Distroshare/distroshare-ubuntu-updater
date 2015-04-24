@@ -8,23 +8,25 @@ import subprocess, sys
 import ConfigParser
 import git
 import platform
+import os
 
 def get_distro_name():
     distro = platform.linux_distribution()
-    return distro[0] + "_" + distro[1]
+    distro_name = distro[0].replace("\"", "")
+    return distro_name + "_" + distro[1]
 
 def run_command(command):
     try:
         subprocess.check_output(command,
                                 stderr=subprocess.STDOUT, shell=False)
     except subprocess.CalledProcessError as e:
-        sys.stderr.write("Error running command: " + command[0] + "\n")
+        sys.stderr.write("Error running command " + command[0] + ": "\
+                         + e.output + "\n")
 
-def update_release_version(base_version, machine_version):
+def update_release_version(version):
     release_file = open("/etc/distroshare_release", 'w')
     release_file.truncate()
-    release_file.write("base_version=" + base_version + "\n")
-    release_file.write("machine_version=" + machine_version + "\n")
+    release_file.write("base_version=" + version + "\n")
     release_file.close()
 
 def main():
@@ -44,30 +46,24 @@ def main():
         sys.exit(1)
 
     repos.update_repos()
-    manifest_base = DUManifestParser(config.get_git_common_dir())
-    manifest_machine = DUManifestParser(config.get_git_machine_dir())
+    manifest = DUManifestParser(config.get_git_common_dir())
     release = DUReleaseParser()
 
-    if manifest_base.get_version() == release.get_base_version() \
-       and manifest_machine.get_version() == release.get_machine_version():
+    if manifest.get_version() == release.get_version():
         print "Already at the latest version"
         sys.exit(0)
 
     print "Adding any repos listed"
-    for manifest in [manifest_base, manifest_machine]:
-        if manifest is None:
-            continue
-
-        #add repos
-        repos = manifest.get_repos_to_add()
-        if repos:
-            for addr in repos:
-                run_command(["add-apt-repository", "-y", addr])
+    #add repos
+    repos = manifest.get_repos_to_add()
+    if repos:
+        for addr in repos:
+            run_command(["add-apt-repository", "-y", addr])
 
     print "Rsyncing distro specific config files"
     distro_config_files = config.get_git_common_dir() + "/" + get_distro_name() + "/"
     if os.path.isdir(distro_config_files):
-    run_command(["rsync","-a", distro_config_files, "/"])
+        run_command(["rsync","-a", distro_config_files, "/"])
 		
     #update package lists
     print "Running apt-get update"
@@ -76,27 +72,24 @@ def main():
     run_command(["apt-get", "-qq", "dist-upgrade"])
 
     print "Installing packages and putting packages on hold"
-    for manifest in [manifest_base, manifest_machine]:
-        if manifest is None:
-            continue
 
-        #install packages
-        packages = manifest.get_packages_to_install()
-        if packages:
-            for name in packages:
-                run_command(["apt-get", "-qq", "install", name])
+    #install packages
+    packages = manifest.get_packages_to_install()
+    if packages:
+        for name in packages:
+            run_command(["apt-get", "-qq", "install", name])
 
-        #put packages on hold
-        packages = manifest.get_packages_to_hold()
-        if packages:
-            for name in packages:
-                run_command(["apt-mark", "hold", name])
+    #put packages on hold
+    packages = manifest.get_packages_to_hold()
+    if packages:
+        for name in packages:
+            run_command(["apt-mark", "hold", name])
 
     #run rsync to copy the files to the proper locations
     print "Rsyncing common config files"
     run_command(["rsync","-a", config.get_git_common_dir() + "/all/", "/"])
     print "Rsyncing machine specific config files"
-    run_command(["rsync","-a", config.get_git_machine_dir() + "/all/", "/"])
+    run_command(["rsync","-a", config.get_git_machine_dir() + "/", "/"])
 
     #running grub-update
     print "Updating Grub"
@@ -108,8 +101,7 @@ def main():
 
     #updating the release version
     print "Updating the version number in /etc/distroshare_release"
-    update_release_version(manifest_base.get_version(), 
-                           manifest_machine.get_version())
+    update_release_version(manifest.get_version())
 
 
 if __name__ == "__main__": main()
