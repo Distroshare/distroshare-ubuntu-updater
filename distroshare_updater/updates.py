@@ -1,6 +1,6 @@
 from git import Repo
 from git.exc import GitCommandError
-import os
+import os, sys, subprocess
 
 class GitRepos:    
     _config = None
@@ -34,5 +34,16 @@ class GitRepos:
             repo.git.reset('--hard')
             repo.remotes.origin.fetch()
             repo.remotes.origin.pull()
+            cur_path = os.getcwd()
+            os.chdir(self._config.get_git_common_dir())
+            try:
+                self._product_name = subprocess.check_output(
+                ['./git-cache-meta.sh', '--apply'],
+                stderr=subprocess.STDOUT, shell=False)
+            except subprocess.CalledProcessError as e:
+                sys.stderr.write("Error applying permissions to git files" + "\n")
+                sys.exit(1)
+
+
         except GitCommandError as e:
             print "Error retrieving updates: " + str(e)
