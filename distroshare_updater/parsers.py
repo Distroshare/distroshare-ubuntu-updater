@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 import ConfigParser, os
 import platform
 import subprocess
+import re
 
 class FakeSecHead(object):
     """Taken from: 
@@ -37,9 +38,13 @@ class DUConfigParser:
             self._product_name = subprocess.check_output(
                 '/usr/sbin/dmidecode | grep Product | cut -f 2 -d ":"',
                 stderr=subprocess.STDOUT, shell=True)
-            print "Product: " + self._product_name
         except subprocess.CalledProcessError as e:
             self._product_name = None
+
+        if self._product_name is not None:
+            pattern = re.compile('([\W]*)([\w_]+)([\W]*)')
+            match = pattern.match(self._product_name)
+            self._product_name = match.group(2)
 
         if self._product_name is None or len(self._product_name) == 0:
             sys.stderr.write("Error getting the product name\n")
