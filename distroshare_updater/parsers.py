@@ -54,6 +54,9 @@ class DUConfigParser:
         self.get_git_dir()
         self.get_git_base_repo()
 
+    def get_product_name(self):
+	return self._product_name
+
     def get_git_dir(self):
         """Returns the local directory to store the git repo"""
 

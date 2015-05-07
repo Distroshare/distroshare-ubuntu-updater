@@ -64,6 +64,11 @@ def main():
     distro_config_files = config.get_git_common_dir() + "/" + get_distro_name() + "/"
     if os.path.isdir(distro_config_files):
         run_command(["rsync","-a", distro_config_files, "/"])
+    
+    distro_config_files = config.get_git_common_dir() + "/" + \
+	config.get_product_name() + "_" + get_distro_name() + "/" 
+    if os.path.isdir(distro_config_files):
+        run_command(["rsync","-a", distro_config_files, "/"])
 		
     #update package lists
     print "Running apt-get update"
