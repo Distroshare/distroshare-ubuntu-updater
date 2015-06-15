@@ -1,6 +1,6 @@
 from setuptools import setup
 setup(name='distroshare_ubuntu_updater',
-      version='1.0.6',
+      version='1.0.9',
       description='Updates configuration files and packages',
       author='Hugh Greenberg',
       author_email='hugh@distroshare.com',

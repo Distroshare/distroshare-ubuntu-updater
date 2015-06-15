@@ -93,14 +93,18 @@ class DUReleaseParser:
         """Returns the installed version"""
 
         if self._config is None:
-            return "0"
+            return ("0", "0")
 
         try:
-            version = self._config.get('asection', 'base_version', 0)
+            base_version = self._config.get('asection', 'base_version', 0)
         except ConfigParser.NoOptionError:
-            version = "0"
+            base_version = "0"
+        try:
+            distro_version = self._config.get('asection', 'distro_version', 0)
+        except ConfigParser.NoOptionError:
+            distro_version = "0"
 
-        return version
+        return (base_version, distro_version)
 
 class DUManifestParser:
     """A manifest file parser that uses ElementTree"""

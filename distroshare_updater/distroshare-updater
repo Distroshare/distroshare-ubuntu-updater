@@ -23,10 +23,26 @@ def run_command(command):
         sys.stderr.write("Error running command " + command[0] + ": "\
                          + e.output + "\n")
 
-def update_release_version(version):
+def copy_distro_specific_files(config):
+    print "Rsyncing distro specific config files"
+    distro_config_files = config.get_git_common_dir() + "/" + get_distro_name() + "/"
+    if os.path.isdir(distro_config_files):
+        run_command(["rsync","-av", "--exclude", "manifest.xml", distro_config_files, "/"])
+    
+    distro_config_files = config.get_git_common_dir() + "/" + \
+	config.get_product_name() + "_" + get_distro_name() + "/" 
+    if os.path.isdir(distro_config_files):
+        run_command(["rsync","-av", distro_config_files, "/"])
+		        
+def update_release_version(base_manifest, distro_manifest):
     release_file = open("/etc/distroshare_release", 'w')
     release_file.truncate()
-    release_file.write("base_version=" + version + "\n")
+    release_file.write("base_version=" + base_manifest.get_version() + "\n")
+    if distro_manifest:
+        release_file.write("distro_version=" + distro_manifest.get_version() + "\n")
+    else:
+        release_file.write("distro_version=0\n")
+        
     release_file.close()
 
 def main():
@@ -46,30 +62,34 @@ def main():
         sys.exit(1)
 
     repos.update_repos()
-    manifest = DUManifestParser(config.get_git_common_dir())
+    base_manifest = DUManifestParser(config.get_git_common_dir())
+    distro_manifest = None
+    distro_manifest_path = config.get_git_common_dir() + "/" + get_distro_name()
+    if os.path.isfile(distro_manifest_path + "/manifest.xml"):
+        distro_manifest = DUManifestParser(distro_manifest_path)
+        
     release = DUReleaseParser()
 
-    if manifest.get_version() == release.get_version():
+    latest_version = True
+    (base_version, distro_version) = release.get_version()
+    if base_manifest.get_version() != base_version:
+        latest_version = False
+    if distro_manifest is not None and \
+       distro_manifest.get_version() != distro_version:
+        latest_version = False
+    if latest_version is True:
         print "Already at the latest version"
         sys.exit(0)
 
     print "Adding any repos listed"
     #add repos
-    repos = manifest.get_repos_to_add()
+    repos = base_manifest.get_repos_to_add()
     if repos:
         for addr in repos:
             run_command(["add-apt-repository", "-y", addr])
 
-    print "Rsyncing distro specific config files"
-    distro_config_files = config.get_git_common_dir() + "/" + get_distro_name() + "/"
-    if os.path.isdir(distro_config_files):
-        run_command(["rsync","-a", distro_config_files, "/"])
-    
-    distro_config_files = config.get_git_common_dir() + "/" + \
-	config.get_product_name() + "_" + get_distro_name() + "/" 
-    if os.path.isdir(distro_config_files):
-        run_command(["rsync","-a", distro_config_files, "/"])
-		
+    copy_distro_specific_files(config)
+
     #update package lists
     print "Running apt-get update"
     run_command(["apt-get", "-qq", "update"])
@@ -77,25 +97,32 @@ def main():
     run_command(["apt-get", "-qq", "dist-upgrade"])
 
     print "Installing packages and putting packages on hold"
+    manifests = [base_manifest, distro_manifest]
+    for manifest in manifests:
+        if manifest is None:
+            continue
+        
+        #install packages
+        packages = manifest.get_packages_to_install()
+        if packages:
+            for name in packages:
+                print "Installing: " + name
+                run_command(["apt-get", "-qq", "install", name])
 
-    #install packages
-    packages = manifest.get_packages_to_install()
-    if packages:
-        for name in packages:
-            run_command(["apt-get", "-qq", "install", name])
-
-    #put packages on hold
-    packages = manifest.get_packages_to_hold()
-    if packages:
-        for name in packages:
-            run_command(["apt-mark", "hold", name])
+        #put packages on hold
+        packages = manifest.get_packages_to_hold()
+        if packages:
+            for name in packages:
+                print "Putting on hold: " + name
+                run_command(["apt-mark", "hold", name])
 
     #run rsync to copy the files to the proper locations
     print "Rsyncing common config files"
-    run_command(["rsync","-a", config.get_git_common_dir() + "/all/", "/"])
+    run_command(["rsync","-av", config.get_git_common_dir() + "/all/", "/"])
     print "Rsyncing machine specific config files"
-    run_command(["rsync","-a", config.get_git_machine_dir() + "/", "/"])
-
+    run_command(["rsync","-av", config.get_git_machine_dir() + "/", "/"])
+    copy_distro_specific_files(config)
+    
     #running grub-update
     print "Updating Grub"
     run_command(["update-grub"])
@@ -106,7 +133,7 @@ def main():
 
     #updating the release version
     print "Updating the version number in /etc/distroshare_release"
-    update_release_version(manifest.get_version())
+    update_release_version(base_manifest, distro_manifest)
 
 
 if __name__ == "__main__": main()
