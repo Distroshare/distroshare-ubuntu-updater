@@ -1,0 +1,10 @@
+[Unit]
+Description=Runs distroshare updater first run script
+
+[Service]
+ExecStart=/usr/bin/init-du-firstrun
+Type=oneshot
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target

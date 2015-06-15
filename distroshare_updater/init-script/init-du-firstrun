@@ -1,0 +1,24 @@
+#!/bin/bash
+
+if [ -f /etc/default/du-firstrun ]
+then
+   exit 0
+fi
+
+DISTRO=`cat /etc/lsb-release | grep DISTRIB_ID | cut -f 2 -d "=" | sed -e 's/"//g'`
+DISTRO_VERSION=`cat /etc/lsb-release | grep DISTRIB_RELEASE | cut -f 2 -d "=" | sed -e 's/"//g'`
+DISTRO_NAME="${DISTRO}_${DISTRO_VERSION}"
+MACHINE=`/usr/sbin/dmidecode | grep Product | cut -f 2 -d ":" | sed -e 's/[^a-zA-Z0-9_]*//g'`
+MACHINE_DIR="/var/lib/distroshare-updater/updates/$MACHINE/"
+if [ -d "$MACHINE_DIR" ]
+   then
+   rsync -a "$MACHINE_DIR" /
+fi
+
+MACHINE_DISTRO_DIR="/var/lib/distroshare-updater/updates/${MACHINE}_${DISTRO_NAME}/"
+if [ -d "$MACHINE_DISTRO_DIR" ]
+   then
+   rsync -a "$MACHINE_DISTRO_DIR" /
+fi
+
+touch /etc/default/du-firstrun
