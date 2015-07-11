@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#! /usr/bin/python2.7
 
 from distroshare_updater.parsers import DUConfigParser
 from distroshare_updater.parsers import DUManifestParser
@@ -94,7 +94,7 @@ def main():
     print "Running apt-get update"
     run_command(["apt-get", "-qq", "update"])
     print "Running apt-get dist-upgrade"
-    run_command(["apt-get", "-qq", "dist-upgrade"])
+    run_command(["apt-get", "-qq", "-o", "Dpkg::Options::=--force-confold", "dist-upgrade"])
 
     print "Installing packages and putting packages on hold"
     manifests = [base_manifest, distro_manifest]
@@ -107,7 +107,13 @@ def main():
         if packages:
             for name in packages:
                 print "Installing: " + name
-                run_command(["apt-get", "-qq", "install", name])
+                run_command(["apt-get", "-qq", "-o", "Dpkg::Options::=--force-confold", "install", name])
+
+        packages = manifest.get_packages_to_remove()
+        if packages:
+            for name in packages:
+                print "Removing: " + name
+                run_command(["apt-get", "-qq", "--purge", "remove", name])
 
         #put packages on hold
         packages = manifest.get_packages_to_hold()

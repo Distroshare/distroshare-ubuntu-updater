@@ -150,6 +150,23 @@ class DUManifestParser:
 
         return install
 
+    def get_packages_to_remove(self):
+        """Returns a list of packages to remove"""
+
+        if self._root is None:
+            return None
+
+        packages = self._root.find('packages_to_remove')
+        if packages is None:
+            return None
+
+        remove = []
+        for package in packages:
+            remove.append(package.get('name'))
+
+        return remove 
+
+
     def get_repos_to_add(self):
         """Returns a list of repos to add"""
 
