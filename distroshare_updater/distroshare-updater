@@ -61,7 +61,7 @@ def main():
         print "Error initializing git repos: " + str(e)
         sys.exit(1)
 
-    repos.update_repos()
+#    repos.update_repos()
     base_manifest = DUManifestParser(config.get_git_common_dir())
     distro_manifest = None
     distro_manifest_path = config.get_git_common_dir() + "/" + get_distro_name()
@@ -121,6 +121,13 @@ def main():
             for name in packages:
                 print "Putting on hold: " + name
                 run_command(["apt-mark", "hold", name])
+
+        #enable systemd services
+        services = manifest.get_systemd_services_to_enable()
+        if services:
+            for name in services:
+                print "Enabling service: " + name
+                run_command(["systemctl", "enable", name])
 
     #run rsync to copy the files to the proper locations
     print "Rsyncing common config files"

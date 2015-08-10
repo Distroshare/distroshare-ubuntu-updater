@@ -183,6 +183,22 @@ class DUManifestParser:
 
         return repos
 
+    def get_systemd_services_to_enable(self):
+        """Returns a list of services to enable"""
+
+        if self._root is None:
+            return None
+
+        services_to_enable = self._root.find('systemd_services_to_enable')
+        if services_to_enable is None:
+            return None
+
+        services = []
+        for service in services_to_enable:
+            services.append(service.get('name'))
+
+        return services
+
     def get_version(self):
         if self._root is None:
             return None
